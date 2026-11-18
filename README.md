@@ -53,6 +53,8 @@ Private storage bucket `hustly-verification` (public: false) created 18 Nov 2026
 
 ## Admin bootstrap
 
+**/admin is password-gated.** Visiting /admin first shows a password bar. The password is read only from the `ADMIN_PASSWORD` environment variable (set in the Vercel dashboard, server-side only — never hard-coded, never in this repo). Without it, /admin shows an "admin password not configured" state and no dashboard. Every admin API route also checks the admin session cookie, in addition to the role check below.
+
 Do NOT hard-code an admin password. Create the first admin account by signing up normally, then insert the user id into `admin_roles` from the Supabase SQL editor (owner-controlled), e.g.:
 
 ```sql
