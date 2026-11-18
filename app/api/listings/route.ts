@@ -1,9 +1,9 @@
 import { NextRequest } from "next/server";
-import { getServerSupabase } from "@/lib/supabase";
+import { getServerSupabase, notConfiguredResponse } from "@/lib/supabase";
 
 // Listings: university isolation is enforced in the query (university_id =
-// the viewer's verified university), never UI-only. When the database is not
-// connected yet, the marketplace shows clearly-marked demo listings instead.
+// the viewer's verified university), never UI-only. Only real listings
+// from the hustly_listings table are ever returned — no sample data.
 export async function GET(req: NextRequest) {
   const supabase = getServerSupabase();
   const universityId = req.nextUrl.searchParams.get("universityId");
@@ -26,7 +26,7 @@ export async function POST(req: NextRequest) {
     if (!body.description || String(body.description).length > 1000) return Response.json({ ok: false, error: "A description of up to 1000 characters is required." }, { status: 400 });
     if (typeof body.priceMin !== "number" || body.priceMin < 0) return Response.json({ ok: false, error: "Enter a valid starting price." }, { status: 400 });
     const supabase = getServerSupabase();
-    if (!supabase) return Response.json({ ok: true, configured: false, id: `local-${Date.now()}`, note: "Database not connected yet — listing kept on this device only." });
+    if (!supabase) return notConfiguredResponse();
     // seller_id / university_id must be derived server-side from the session,
     // never trusted from the browser. This route inserts with the verified
     // university of the signed-in user (enforced again by RLS).

@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server";
 import { getServerSupabase, notConfiguredResponse } from "@/lib/supabase";
+import { isAdminSession } from "@/lib/admin-auth";
 
 // Student verification submission + admin decision.
 // RETENTION: ID image + selfie are stored in the PRIVATE Supabase Storage
@@ -42,10 +43,12 @@ export async function POST(req: NextRequest) {
   } catch { return Response.json({ ok: false, error: "Could not submit your verification. Please try again." }, { status: 500 }); }
 }
 
-// Admin decision — server-side only. The caller must be an admin; the route
-// checks hustly_admin_roles. A human admin compares face vs ID; AI never decides.
+// Admin decision — server-side only. The caller must hold the admin
+// password session (POST /api/admin/auth) AND, where an adminId is given,
+// the hustly_admin_roles check below. A human admin compares face vs ID; AI never decides.
 export async function PATCH(req: NextRequest) {
   try {
+    if (!isAdminSession()) return Response.json({ ok: false, error: "Admin sign-in required." }, { status: 401 });
     const { id, decision, reason, adminId } = await req.json();
     if (!["approved", "rejected", "resubmission_requested"].includes(decision)) return Response.json({ ok: false, error: "Invalid decision." }, { status: 400 });
     const supabase = getServerSupabase();

@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { JOB_STATUSES, naira, type Job } from "@/lib/demo";
+import { JOB_STATUSES, naira, type Job } from "@/lib/utils";
 import { EmptyState, SafetyBanner } from "@/components/ui";
 
 const FLOW: Job["status"][] = ["requested", "accepted", "in_progress", "delivered", "completion_pending", "completed"];

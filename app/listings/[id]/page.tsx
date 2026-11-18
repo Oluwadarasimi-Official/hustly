@@ -2,17 +2,40 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { DEMO_LISTINGS, naira, type Listing } from "@/lib/demo";
+import { naira, type Listing } from "@/lib/utils";
 import { EmptyState, SafetyBanner, VerifiedBadge } from "@/components/ui";
+
+function mapRow(row: Record<string, unknown>): Listing {
+  const cat = row.hustly_categories as { name?: string } | null;
+  return {
+    id: String(row.id),
+    title: String(row.title || ""),
+    category: cat?.name || "Other",
+    description: String(row.description || ""),
+    priceMin: Number(row.price_min || 0),
+    priceMax: row.price_max == null ? null : Number(row.price_max),
+    university: "",
+    seller: String(row.seller_id || ""),
+    verified: false,
+    delivery: String(row.delivery_estimate || ""),
+  };
+}
 
 export default function ListingDetailPage() {
   const params = useParams(); const id = String(params.id);
   const [listing, setListing] = useState<Listing | null>(null);
+  const [loading, setLoading] = useState(true);
   const [task, setTask] = useState(""); const [price, setPrice] = useState(""); const [deadline, setDeadline] = useState("");
   const [msg, setMsg] = useState(""); const [error, setError] = useState(""); const [sending, setSending] = useState(false);
   useEffect(() => {
-    const mine: Listing[] = JSON.parse(localStorage.getItem("hustly_my_listings") || "[]");
-    setListing([...mine, ...DEMO_LISTINGS].find((l) => l.id === id) || null);
+    fetch("/api/listings")
+      .then((r) => r.json())
+      .then((j) => {
+        const rows = ((j.listings || []) as Record<string, unknown>[]).map(mapRow);
+        setListing(rows.find((l) => l.id === id) || null);
+      })
+      .catch(() => setListing(null))
+      .finally(() => setLoading(false));
   }, [id]);
   async function request(e: React.FormEvent) {
     e.preventDefault(); setError(""); setMsg(""); setSending(true);
@@ -24,6 +47,7 @@ export default function ListingDetailPage() {
     localStorage.setItem("hustly_jobs", JSON.stringify(jobs));
     setMsg("Request sent. The seller can accept, decline, or ask for clarification.");
   }
+  if (loading) return <div className="mx-auto max-w-3xl px-4 py-10"><p className="text-center text-sm text-ink-muted">Loading listing…</p></div>;
   if (!listing) return <div className="mx-auto max-w-3xl px-4 py-10"><EmptyState title="Listing not found" body="This listing may have been removed or the link is wrong." action={<Link href="/marketplace" className="rounded-xl bg-brand px-5 py-3 font-medium text-white">Back to marketplace</Link>} /></div>;
   return (
     <div className="mx-auto max-w-3xl px-4 py-10 sm:px-6">
@@ -32,8 +56,8 @@ export default function ListingDetailPage() {
       <h1 className="mt-3 text-3xl font-bold leading-tight text-ink">{listing.title}</h1>
       <p className="mt-3 text-base leading-relaxed text-ink-soft">{listing.description}</p>
       <p className="mt-4 text-xl font-bold text-ink">{naira(listing.priceMin)}{listing.priceMax ? ` – ${naira(listing.priceMax)}` : ""}</p>
-      <p className="mt-1 text-sm text-ink-muted">Delivery: {listing.delivery} · {listing.university}</p>
-      <div className="mt-4 flex items-center gap-2"><Link href={`/profile/${encodeURIComponent(listing.seller)}`} className="font-medium text-ink">{listing.seller}</Link>{listing.verified ? <VerifiedBadge /> : null}</div>
+      {listing.delivery ? <p className="mt-1 text-sm text-ink-muted">Delivery: {listing.delivery}</p> : null}
+      <div className="mt-4 flex items-center gap-2">{listing.seller ? <Link href={`/profile/${encodeURIComponent(listing.seller)}`} className="font-medium text-ink">View seller</Link> : null}{listing.verified ? <VerifiedBadge /> : null}</div>
       <div className="mt-6"><SafetyBanner /></div>
       <form onSubmit={request} className="mt-6 space-y-4 rounded-2xl border border-line bg-white p-6 shadow-card">
         <h2 className="text-lg font-semibold text-ink">Request this service</h2>

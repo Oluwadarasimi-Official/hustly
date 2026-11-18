@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { JOB_STATUSES, naira, type Job } from "@/lib/demo";
+import { JOB_STATUSES, naira, type Job } from "@/lib/utils";
 import { EmptyState } from "@/components/ui";
 
 export default function InboxPage() {

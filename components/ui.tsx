@@ -76,11 +76,3 @@ export function VerifiedBadge() {
     </span>
   );
 }
-
-export function DemoNote() {
-  return (
-    <p className="rounded-lg border border-line bg-wash px-3 py-2 text-xs leading-relaxed text-ink-muted">
-      Demo data — sample listings shown so you can preview the marketplace. Real listings will appear once Hustly is connected to its database.
-    </p>
-  );
-}

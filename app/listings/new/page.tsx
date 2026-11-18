@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { CATEGORIES, UNIVERSITIES } from "@/lib/data";
-import { naira } from "@/lib/demo";
+import { naira } from "@/lib/utils";
 
 export default function NewListingPage() {
   const router = useRouter();
@@ -15,11 +15,7 @@ export default function NewListingPage() {
       const res = await fetch("/api/listings", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...form, priceMin: Number(form.priceMin), priceMax: form.priceMax ? Number(form.priceMax) : null }) });
       const j = await res.json();
       if (!res.ok) { setError(j.error || "Could not create the listing."); return; }
-      // Demo preview: keep the listing locally so it appears in the marketplace now.
-      const mine = JSON.parse(localStorage.getItem("hustly_my_listings") || "[]");
-      mine.unshift({ id: j.id || `local-${Date.now()}`, title: form.title, category: form.category, description: form.description, priceMin: Number(form.priceMin), priceMax: form.priceMax ? Number(form.priceMax) : null, university: form.university, seller: "You", verified: false, delivery: form.delivery });
-      localStorage.setItem("hustly_my_listings", JSON.stringify(mine));
-      router.push("/marketplace");
+      router.push(j.id ? `/listings/${j.id}` : "/marketplace");
     } catch { setError("Could not create the listing. Please try again."); }
     finally { setLoading(false); }
   }

@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { SAFETY_COPY } from "@/lib/data";
 import { SafetyBanner } from "@/components/ui";
-import type { ChatMessage, Job } from "@/lib/demo";
+import type { ChatMessage, Job } from "@/lib/utils";
 
 export default function ChatPage() {
   const params = useParams(); const jobId = String(params.id);
