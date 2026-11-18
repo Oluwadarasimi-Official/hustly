@@ -4,7 +4,7 @@ import { CATEGORIES } from "@/lib/data";
 import { PasswordField } from "@/components/password-field";
 
 type QueueItem = { id: string; name: string; email: string; university: string; faculty: string; department: string; level: string; submitted: string; status: string };
-type PreviewItem = QueueItem & { reviewed_at: string | null; decision_reason: string | null; idCardUrl: string | null; selfieUrl: string | null };
+type PreviewItem = QueueItem & { reviewed_at: string | null; decision_reason: string | null; review_due_at: string | null; idCardUrl: string | null; selfieUrl: string | null };
 
 // Human-readable submitted time, e.g. "18 Nov 2026, 08:04 WAT" — never the
 // raw ISO timestamp. Africa/Lagos is WAT year-round (no daylight saving).
@@ -212,6 +212,9 @@ export default function AdminPage() {
               <div><dt className="text-ink-muted">Department</dt><dd className="font-medium text-ink">{preview.department || "—"}</dd></div>
               <div><dt className="text-ink-muted">Level</dt><dd className="font-medium text-ink">{preview.level || "—"}</dd></div>
               <div><dt className="text-ink-muted">Status</dt><dd className="font-medium text-ink">{STATUS_LABELS[preview.status] || preview.status}</dd></div>
+              <div><dt className="text-ink-muted">Review due by</dt><dd className="font-medium text-ink">{preview.review_due_at ? formatSubmitted(preview.review_due_at) : "—"}</dd></div>
+              {preview.reviewed_at ? <div><dt className="text-ink-muted">Reviewed</dt><dd className="font-medium text-ink">{formatSubmitted(preview.reviewed_at)}</dd></div> : null}
+              {preview.decision_reason ? <div className="sm:col-span-2"><dt className="text-ink-muted">Decision reason</dt><dd className="font-medium text-ink">{preview.decision_reason}</dd></div> : null}
             </dl>
             <div className="mt-5 grid gap-4 sm:grid-cols-2">
               <figure>
