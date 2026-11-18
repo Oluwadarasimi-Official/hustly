@@ -53,9 +53,11 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
     universityId = sellerUni.id;
     if (!university) university = sellerUni.name || "";
   }
-  // Same-university check for a signed-in viewer.
+  // Same-university check for a signed-in viewer — never for your OWN
+  // profile: you can always see yourself, even if the university on your
+  // account and on your profile ever disagree.
   const viewer = await getUserFromBearer(req);
-  if (viewer && universityId) {
+  if (viewer && viewer.id !== id && universityId) {
     const viewerUni = await resolveUniversity(supabase, viewer.id, viewer.meta);
     if (viewerUni.id && viewerUni.id !== universityId) {
       return Response.json({ ok: false, crossUniversity: true, profile: null, error: "This profile is not available at your university. You can only see sellers from your own university." }, { status: 403 });

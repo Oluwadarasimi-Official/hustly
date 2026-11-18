@@ -8,27 +8,6 @@ export function LogoCombo({ className = "w-44", priority = false }: { className?
   );
 }
 
-export function Header() {
-  return (
-    <header className="sticky top-0 z-40 border-b border-line bg-white/95 backdrop-blur">
-      <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-2 sm:px-6">
-        <Link href="/" className="flex shrink-0 items-center" aria-label="Hustly home">
-          {/* Scaled-down full combo, aspect ratio preserved — it is square, so it stays compact. */}
-          <Image src="/logo.jpg" alt="Hustly — Your Campus. Your Hustle." width={1254} height={1254} className="h-12 w-12 rounded-lg object-cover" priority />
-          <span className="ml-2 hidden text-base font-semibold text-ink sm:block">Hustly</span>
-        </Link>
-        <nav className="flex items-center gap-1 text-sm sm:gap-2" aria-label="Main">
-          <Link href="/marketplace" className="whitespace-nowrap rounded-lg px-2 py-2 text-ink-soft hover:bg-wash hover:text-ink sm:px-3">Marketplace</Link>
-          <Link href="/safety" className="hidden whitespace-nowrap rounded-lg px-3 py-2 text-ink-soft hover:bg-wash hover:text-ink md:block">Safety</Link>
-          <Link href="/inbox" className="hidden whitespace-nowrap rounded-lg px-3 py-2 text-ink-soft hover:bg-wash hover:text-ink sm:block">Inbox</Link>
-          <Link href="/auth/signin" className="whitespace-nowrap rounded-lg px-3 py-2 text-ink-soft hover:bg-wash hover:text-ink">Sign in</Link>
-          <Link href="/auth/signup" className="whitespace-nowrap rounded-lg bg-brand px-3 py-2 font-medium text-white hover:bg-brand-hover">Sign up</Link>
-        </nav>
-      </div>
-    </header>
-  );
-}
-
 export function Footer() {
   return (
     <footer className="border-t border-line bg-white">

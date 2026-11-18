@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { naira, type Listing } from "@/lib/utils";
 import { getAccessToken } from "@/lib/client-auth";
+import { getBrowserSupabase } from "@/lib/supabase";
 import { EmptyState, VerifiedBadge } from "@/components/ui";
 
 type Profile = {
@@ -18,9 +19,15 @@ export default function ProfilePage() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [crossUniversity, setCrossUniversity] = useState(false);
   const [reported, setReported] = useState(false);
+  const [myId, setMyId] = useState<string | null>(null);
   useEffect(() => {
     (async () => {
       const token = await getAccessToken();
+      // Who is signed in — so your OWN profile can say so and offer Edit.
+      try {
+        const { data } = await getBrowserSupabase()!.auth.getSession();
+        setMyId(data.session?.user?.id || null);
+      } catch { setMyId(null); }
       const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
       try {
         const res = await fetch(`/api/profiles/${encodeURIComponent(id)}`, { headers });
@@ -72,6 +79,12 @@ export default function ProfilePage() {
         </div>
         {profile?.faculty || profile?.department || profile?.level ? (
           <p className="mt-1 text-sm text-ink-muted">{[profile?.faculty, profile?.department, profile?.level].filter(Boolean).join(" · ")}</p>
+        ) : null}
+        {myId && myId === id ? (
+          <p className="mt-3 flex flex-wrap items-center gap-3 text-sm">
+            <span className="font-medium text-brand-text">This is your profile.</span>
+            <Link href="/profile/edit" className="rounded-lg border border-line px-3 py-1.5 font-medium text-ink hover:bg-wash">Edit profile</Link>
+          </p>
         ) : null}
         {profile?.bio ? <p className="mt-3 text-sm leading-relaxed text-ink-soft">{profile.bio}</p> : (
           <p className="mt-3 text-sm leading-relaxed text-ink-soft">A student seller on Hustly. Only public information is shown here — email, phone, hostel address and ID details are private and never appear on profiles.</p>

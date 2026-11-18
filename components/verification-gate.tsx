@@ -9,6 +9,9 @@ import { fetchVerificationStatus } from "@/lib/client-auth";
 // use the marketplace, listings, jobs, chat, inbox, saved, profile or
 // notifications until an admin approves them. Signed-out visitors can
 // still browse publicly; the gate only applies to signed-in accounts.
+// One exception: your OWN profile (/profile/<your own id>, /profile/edit)
+// is always viewable — seeing who you are is part of getting verified,
+// not "using the app". Other people's profiles stay gated as before.
 //
 // Open to everyone, verified or not: the landing page, sign-in / sign-up /
 // email-OTP, the verification page itself, safety info, and the admin
@@ -36,6 +39,15 @@ export default function VerificationGate() {
       const { data } = await supabase.auth.getSession().catch(() => ({ data: { session: null } }));
       const session = data.session;
       if (!session || cancelled) return; // not signed in: public browsing stays open
+      // Your OWN profile is always viewable — seeing who you are is part of
+      // getting verified, not "using the app". Without this, an unverified
+      // user tapping "My profile" was bounced straight back to /verify.
+      // Other people's profiles stay gated as before.
+      const ownProfile =
+        pathname === "/profile/edit" ||
+        (pathname.startsWith("/profile/") &&
+          decodeURIComponent(pathname.split("/")[2] || "") === session.user.id);
+      if (ownProfile) return;
       const now = Date.now();
       if (cache.current && cache.current.userId === session.user.id && now - cache.current.at < 60_000) {
         if (!cache.current.verified) router.replace("/verify");

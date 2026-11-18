@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import { Footer, Header } from "@/components/ui";
+import { Footer } from "@/components/ui";
+import { Header } from "@/components/header";
 import VerificationGate from "@/components/verification-gate";
 
 export const metadata: Metadata = {
