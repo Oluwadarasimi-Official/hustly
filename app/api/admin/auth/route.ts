@@ -1,52 +1,53 @@
 import { NextRequest } from "next/server";
 import {
   ADMIN_COOKIE,
-  adminSessionCookieValue,
+  ADMIN_SESSION_TTL_SECONDS,
   isAdminPasswordConfigured,
   isAdminSession,
+  issueAdminSessionToken,
   verifyAdminPassword,
 } from "@/lib/admin-auth";
+import {
+  clearAdminLoginFailures,
+  hashClientIp,
+  isAdminLockedOut,
+  recordAdminLoginFailure,
+} from "@/lib/admin-rate-limit";
 
 // Admin password gate: POST { password } -> sets a secure httpOnly session
 // cookie on success. GET -> { configured, authed } so /admin knows whether
 // to show the password bar, the dashboard, or a "not configured" state.
 // The password itself is never logged, never returned, and never stored
 // anywhere except the Vercel ADMIN_PASSWORD environment variable.
+//
+// Hardening (2026-11-18):
+// - Session tokens are fresh random values with a 2-hour expiry (see
+//   lib/admin-auth.ts) — no permanent token exists to steal.
+// - Failed logins are tracked in the database with escalating lockouts
+//   (5 fails -> 5 min, 10 -> 30 min, 15+ -> 60 min), so restarts and
+//   extra serverless instances do not reset the guard.
+// - Failed attempts return a generic error that reveals nothing about
+//   whether the password is configured or how many attempts remain.
+// - Every response here is Cache-Control: no-store — admin auth state
+//   must never be cached by a browser, CDN, or proxy.
 
-// Small in-memory brute-force guard: 5 failed attempts per IP per 5 minutes.
-const failures = new Map<string, { count: number; firstAt: number }>();
-const WINDOW_MS = 5 * 60 * 1000;
-const MAX_FAILURES = 5;
+function noStore(res: Response): Response {
+  res.headers.set("Cache-Control", "no-store, no-cache, must-revalidate");
+  return res;
+}
 
-function clientKey(req: NextRequest): string {
+function clientIp(req: NextRequest): string {
   return req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
 }
 
-function isRateLimited(key: string): boolean {
-  const entry = failures.get(key);
-  if (!entry) return false;
-  if (Date.now() - entry.firstAt > WINDOW_MS) {
-    failures.delete(key);
-    return false;
-  }
-  return entry.count >= MAX_FAILURES;
-}
-
-function recordFailure(key: string): void {
-  const entry = failures.get(key);
-  if (!entry || Date.now() - entry.firstAt > WINDOW_MS) {
-    failures.set(key, { count: 1, firstAt: Date.now() });
-  } else {
-    entry.count += 1;
-  }
-}
-
 export async function GET() {
-  return Response.json({
-    ok: true,
-    configured: isAdminPasswordConfigured(),
-    authed: isAdminSession(),
-  });
+  return noStore(
+    Response.json({
+      ok: true,
+      configured: isAdminPasswordConfigured(),
+      authed: isAdminSession(),
+    }),
+  );
 }
 
 export async function POST(req: NextRequest) {
@@ -57,7 +58,7 @@ export async function POST(req: NextRequest) {
     };
 
     if (body.logout) {
-      const res = Response.json({ ok: true });
+      const res = noStore(Response.json({ ok: true }));
       res.headers.append(
         "Set-Cookie",
         `${ADMIN_COOKIE}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0`,
@@ -65,45 +66,46 @@ export async function POST(req: NextRequest) {
       return res;
     }
 
-    if (!isAdminPasswordConfigured()) {
-      return Response.json(
-        {
-          ok: false,
-          configured: false,
-          error:
-            "Admin password is not configured yet. The owner needs to set ADMIN_PASSWORD in the deployment settings, then this will work.",
-        },
-        { status: 503 },
+    const ipHash = hashClientIp(clientIp(req));
+
+    // Generic error for every failure path: an attacker learns nothing
+    // about whether the password is configured or how close they are.
+    const genericFail = (status: number) =>
+      noStore(Response.json({ ok: false, error: "Wrong password. Try again." }, { status }));
+
+    const lock = await isAdminLockedOut(ipHash);
+    if (lock.locked) {
+      const res = noStore(
+        Response.json(
+          { ok: false, error: "Too many wrong attempts. Please wait a while and try again." },
+          { status: 429 },
+        ),
       );
+      res.headers.set("Retry-After", String(lock.retryAfterSeconds));
+      return res;
     }
 
-    const key = clientKey(req);
-    if (isRateLimited(key)) {
-      return Response.json(
-        { ok: false, error: "Too many wrong attempts. Please wait a few minutes and try again." },
-        { status: 429 },
-      );
-    }
+    if (!isAdminPasswordConfigured()) return genericFail(401);
 
     const password = typeof body.password === "string" ? body.password : "";
     if (!verifyAdminPassword(password)) {
-      recordFailure(key);
-      return Response.json({ ok: false, error: "Wrong password. Try again." }, { status: 401 });
+      await recordAdminLoginFailure(ipHash);
+      return genericFail(401);
     }
 
-    failures.delete(key);
-    const token = adminSessionCookieValue();
-    if (!token) {
-      return Response.json({ ok: false, error: "Admin password is not configured yet." }, { status: 503 });
-    }
-    const res = Response.json({ ok: true });
+    await clearAdminLoginFailures(ipHash);
+    const token = issueAdminSessionToken();
+    if (!token) return genericFail(401);
+    const res = noStore(Response.json({ ok: true }));
     const secure = process.env.NODE_ENV === "production" ? "; Secure" : "";
     res.headers.append(
       "Set-Cookie",
-      `${ADMIN_COOKIE}=${token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=43200${secure}`,
+      `${ADMIN_COOKIE}=${token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${ADMIN_SESSION_TTL_SECONDS}${secure}`,
     );
     return res;
   } catch {
-    return Response.json({ ok: false, error: "Could not check the admin password. Please try again." }, { status: 500 });
+    return noStore(
+      Response.json({ ok: false, error: "Could not check the admin password. Please try again." }, { status: 500 }),
+    );
   }
 }
