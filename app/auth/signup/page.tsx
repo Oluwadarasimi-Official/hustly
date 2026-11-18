@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { UNIVERSITIES } from "@/lib/data";
 import { LogoCombo } from "@/components/ui";
+import { PasswordField } from "@/components/password-field";
 import { getBrowserSupabase, isSupabaseConfigured } from "@/lib/supabase";
 
 export default function SignUpPage() {
@@ -36,7 +37,7 @@ export default function SignUpPage() {
         <label className="block text-sm font-medium text-ink">Full name<input required value={form.fullName} onChange={(e) => set("fullName", e.target.value)} className="mt-1 w-full rounded-lg border border-line px-3 py-2.5" placeholder="Your full name" /></label>
         <label className="block text-sm font-medium text-ink">Display name<input required value={form.displayName} onChange={(e) => set("displayName", e.target.value)} className="mt-1 w-full rounded-lg border border-line px-3 py-2.5" placeholder="How other students will see you" /></label>
         <label className="block text-sm font-medium text-ink">Email address<input required type="email" value={form.email} onChange={(e) => set("email", e.target.value)} className="mt-1 w-full rounded-lg border border-line px-3 py-2.5" placeholder="you@student.edu" /></label>
-        <label className="block text-sm font-medium text-ink">Password<input required type="password" minLength={8} value={form.password} onChange={(e) => set("password", e.target.value)} className="mt-1 w-full rounded-lg border border-line px-3 py-2.5" placeholder="At least 8 characters" /></label>
+        <label className="block text-sm font-medium text-ink">Password<PasswordField required minLength={8} value={form.password} onChange={(v) => set("password", v)} autoComplete="new-password" className="mt-1 w-full rounded-lg border border-line px-3 py-2.5" placeholder="At least 8 characters" /></label>
         <label className="block text-sm font-medium text-ink">University<select value={form.university} onChange={(e) => set("university", e.target.value)} className="mt-1 w-full rounded-lg border border-line bg-white px-3 py-2.5">{UNIVERSITIES.map((u) => <option key={u}>{u}</option>)}</select></label>
         <div className="grid grid-cols-2 gap-3">
           <label className="block text-sm font-medium text-ink">Faculty<input required value={form.faculty} onChange={(e) => set("faculty", e.target.value)} className="mt-1 w-full rounded-lg border border-line px-3 py-2.5" placeholder="e.g. Science" /></label>

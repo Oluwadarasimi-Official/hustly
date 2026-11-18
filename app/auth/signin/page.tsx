@@ -3,6 +3,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { LogoCombo } from "@/components/ui";
+import { PasswordField } from "@/components/password-field";
 import { getBrowserSupabase, isSupabaseConfigured } from "@/lib/supabase";
 
 export default function SignInPage() {
@@ -27,7 +28,7 @@ export default function SignInPage() {
       <p className="mt-2 text-sm text-ink-muted">Sign in with your email and password.</p>
       <form onSubmit={submit} className="mt-6 space-y-4 rounded-2xl border border-line bg-white p-6 shadow-card">
         <label className="block text-sm font-medium text-ink">Email address<input required type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="mt-1 w-full rounded-lg border border-line px-3 py-2.5" placeholder="you@student.edu" /></label>
-        <label className="block text-sm font-medium text-ink">Password<input required type="password" value={password} onChange={(e) => setPassword(e.target.value)} className="mt-1 w-full rounded-lg border border-line px-3 py-2.5" placeholder="Your password" /></label>
+        <label className="block text-sm font-medium text-ink">Password<PasswordField required value={password} onChange={setPassword} autoComplete="current-password" className="mt-1 w-full rounded-lg border border-line px-3 py-2.5" placeholder="Your password" /></label>
         {error ? <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700" role="alert">{error}</p> : null}
         <button disabled={loading} className="w-full rounded-xl bg-brand px-4 py-3 font-medium text-white hover:bg-brand-hover disabled:opacity-50">{loading ? "Signing you in…" : "Sign in"}</button>
         <p className="text-center text-sm"><Link href="/auth/reset">Forgot your password?</Link></p>

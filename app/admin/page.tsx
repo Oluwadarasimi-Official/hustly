@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { CATEGORIES } from "@/lib/data";
+import { PasswordField } from "@/components/password-field";
 
 type QueueItem = { id: string; name: string; university: string; submitted: string; status: string };
 
@@ -72,12 +73,11 @@ export default function AdminPage() {
           <form onSubmit={submitPassword} className="mt-6 space-y-4">
             <div>
               <label htmlFor="admin-password" className="block text-sm font-medium text-ink">Admin password</label>
-              <input
+              <PasswordField
                 id="admin-password"
-                type="password"
                 autoComplete="current-password"
                 value={pw}
-                onChange={(e) => setPw(e.target.value)}
+                onChange={setPw}
                 placeholder="Enter admin password"
                 className="mt-1 w-full rounded-lg border border-line bg-white px-4 py-3 text-base text-ink placeholder:text-ink-muted"
                 autoFocus
