@@ -9,7 +9,7 @@ import { EmptyState, VerifiedBadge } from "@/components/ui";
 
 type Profile = {
   id: string; name: string; university: string; faculty: string; department: string;
-  level: string; bio: string; verified: boolean;
+  level: string; bio: string; avatarUrl: string; verified: boolean;
   reviews: { rating: number; comment: string; created: string; reviewer: string; reviewerVerified: boolean }[];
 };
 
@@ -71,7 +71,12 @@ export default function ProfilePage() {
   return (
     <div className="mx-auto max-w-3xl px-4 py-10 sm:px-6">
       <div className="rounded-2xl border border-line bg-white p-6 shadow-card sm:p-8">
-        <div className="flex h-16 w-16 items-center justify-center rounded-full bg-brand-soft text-2xl font-bold text-brand-text">{initial}</div>
+        {profile?.avatarUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={profile.avatarUrl} alt={profile?.name || "Profile picture"} className="h-16 w-16 rounded-full object-cover" />
+        ) : (
+          <div className="flex h-16 w-16 items-center justify-center rounded-full bg-brand-soft text-2xl font-bold text-brand-text">{initial}</div>
+        )}
         <h1 className="mt-4 text-2xl font-bold text-ink">{profile?.name || "Student seller"}</h1>
         <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-ink-soft">
           {profile?.university ? <span>{profile.university}</span> : null}

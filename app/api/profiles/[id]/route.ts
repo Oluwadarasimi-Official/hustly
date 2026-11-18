@@ -19,7 +19,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
   const supabase = getServerSupabase();
   if (!supabase) return Response.json({ ok: true, profile: null });
 
-  let name = ""; let university = ""; let universityId: string | null = null; let faculty = ""; let department = ""; let level = ""; let bio = "";
+  let name = ""; let university = ""; let universityId: string | null = null; let faculty = ""; let department = ""; let level = ""; let bio = ""; let avatarUrl = "";
   const { data: row } = await supabase.from("hustly_profiles").select("*, hustly_universities(name)").eq("id", id).maybeSingle();
   if (row) {
     name = String((row as Record<string, unknown>).display_name || (row as Record<string, unknown>).full_name || "");
@@ -30,6 +30,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
     department = String((row as Record<string, unknown>).department || "");
     level = String((row as Record<string, unknown>).academic_level || "");
     bio = String((row as Record<string, unknown>).bio || "");
+    avatarUrl = String((row as Record<string, unknown>).avatar_url || "");
   }
   // Fallback: details saved at sign-up live in the auth user's metadata.
   if (!name || !university) {
@@ -100,5 +101,5 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
   } catch { reviews = []; }
 
   if (!name && !university && !row && reviews.length === 0) return Response.json({ ok: true, profile: null });
-  return Response.json({ ok: true, profile: { id, name, university, faculty, department, level, bio, verified, reviews } });
+  return Response.json({ ok: true, profile: { id, name, university, faculty, department, level, bio, avatarUrl, verified, reviews } });
 }
