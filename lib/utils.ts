@@ -23,6 +23,13 @@ export function naira(n: number): string {
   return "₦" + n.toLocaleString("en-NG");
 }
 
+// A seller stored on a job/chat is a Supabase user id (a UUID) when it
+// came from a real listing; older entries may hold a plain name instead.
+// Only a UUID is a safe "View seller" target — never link to a raw name.
+export function isUuid(value: string): boolean {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value || "");
+}
+
 export function loadSaved(key: string): string[] {
   if (typeof window === "undefined") return [];
   try { return JSON.parse(localStorage.getItem(key) || "[]"); } catch { return []; }

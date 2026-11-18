@@ -44,6 +44,82 @@ export async function getLatestVerification(userId: string): Promise<LatestVerif
   };
 }
 
+export async function lookupUniversityId(supabase: NonNullable<ReturnType<typeof getServerSupabase>>, name: string | null | undefined): Promise<string | null> {
+  if (!name) return null;
+  const { data } = await supabase.from("hustly_universities").select("id").eq("name", name).maybeSingle();
+  return data ? String((data as { id: unknown }).id) : null;
+}
+
+export type ResolvedUniversity = { id: string | null; name: string | null };
+
+// Resolve a student's university, server-side, from the most reliable
+// source available: (1) their approved verification row, (2) their
+// hustly_profiles row, (3) the university name saved at sign-up. The
+// university is NEVER taken from a client-supplied id or query param.
+export async function resolveUniversity(
+  supabase: NonNullable<ReturnType<typeof getServerSupabase>>,
+  userId: string,
+  meta?: Record<string, unknown>,
+  verificationUniversity?: string | null,
+): Promise<ResolvedUniversity> {
+  if (verificationUniversity) {
+    const id = await lookupUniversityId(supabase, verificationUniversity);
+    if (id) return { id, name: verificationUniversity };
+  }
+  const { data: profile } = await supabase.from("hustly_profiles").select("university_id").eq("id", userId).maybeSingle();
+  const profileUniId = (profile as { university_id?: unknown } | null)?.university_id;
+  if (profileUniId) {
+    const { data: uni } = await supabase.from("hustly_universities").select("name").eq("id", String(profileUniId)).maybeSingle();
+    return { id: String(profileUniId), name: (uni as { name?: string } | null)?.name ?? null };
+  }
+  let metaUniversity: string | null = null;
+  if (meta && typeof meta.university === "string") metaUniversity = meta.university;
+  if (!metaUniversity) {
+    try {
+      const { data } = await supabase.auth.admin.getUserById(userId);
+      const m = (data?.user?.user_metadata || {}) as Record<string, unknown>;
+      if (typeof m.university === "string") metaUniversity = m.university;
+    } catch { /* no auth record — university stays unresolved */ }
+  }
+  if (metaUniversity) {
+    const id = await lookupUniversityId(supabase, metaUniversity);
+    if (id) return { id, name: metaUniversity };
+  }
+  return { id: null, name: null };
+}
+
+// Resolve a student's university for a signed-in, verified account, using
+// their verification row first (it is the admin-approved source of truth).
+export async function resolveViewerUniversity(
+  supabase: NonNullable<ReturnType<typeof getServerSupabase>>,
+  user: { id: string; meta: Record<string, unknown> },
+  verification: LatestVerification,
+): Promise<ResolvedUniversity> {
+  return resolveUniversity(supabase, user.id, user.meta, verification.university);
+}
+
+// Batch check: which of these user ids have an APPROVED student
+// verification (human admin decision)? The verified badge is shown ONLY
+// for ids in this set — never from signup, a pending/rejected status, or
+// a client-supplied flag. Unknown / unapproved ids are simply absent.
+export async function getApprovedUserIds(
+  supabase: NonNullable<ReturnType<typeof getServerSupabase>>,
+  userIds: string[],
+): Promise<Set<string>> {
+  const ids = [...new Set(userIds.filter(Boolean))];
+  if (ids.length === 0) return new Set();
+  try {
+    const { data } = await supabase
+      .from("hustly_student_verifications")
+      .select("user_id")
+      .in("user_id", ids)
+      .eq("status", "approved");
+    return new Set((data || []).map((r) => String((r as { user_id: unknown }).user_id)));
+  } catch {
+    return new Set();
+  }
+}
+
 type VerifiedUser = { user: { id: string; email: string | null }; verification: LatestVerification };
 
 // Require a signed-in AND admin-approved student. Returns the user on

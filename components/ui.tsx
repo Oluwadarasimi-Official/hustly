@@ -69,9 +69,15 @@ export function EmptyState({ title, body, action }: { title: string; body: strin
 }
 
 export function VerifiedBadge() {
+  // REAL green verified badge: solid emerald #10B981, white check, bold
+  // white "Verified" text — unmistakable, never a pale tint or blue.
   return (
-    <span className="inline-flex items-center gap-1 rounded-full bg-brand-soft px-2.5 py-0.5 text-xs font-medium text-brand-text">
-      Verified student
+    <span className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full bg-[#10B981] px-2.5 py-0.5 text-xs font-bold text-white" title="Verified student — identity confirmed by a Hustly admin">
+      <svg aria-hidden="true" viewBox="0 0 20 20" fill="none" className="h-3.5 w-3.5 shrink-0">
+        <circle cx="10" cy="10" r="9" fill="#ffffff" />
+        <path d="M6 10.5l2.5 2.5L14 7.5" stroke="#10B981" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+      Verified
     </span>
   );
 }

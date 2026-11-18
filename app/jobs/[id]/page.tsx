@@ -2,9 +2,10 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { JOB_STATUSES, naira, type Job } from "@/lib/utils";
+import { JOB_STATUSES, isUuid, naira, type Job } from "@/lib/utils";
 import { getAccessToken } from "@/lib/client-auth";
 import { EmptyState, SafetyBanner } from "@/components/ui";
+import { SellerBadge } from "@/components/seller-badge";
 
 const FLOW: Job["status"][] = ["requested", "accepted", "in_progress", "delivered", "completion_pending", "completed"];
 
@@ -40,7 +41,8 @@ export default function JobPage() {
     <div className="mx-auto max-w-3xl px-4 py-10 sm:px-6">
       <p className="text-sm"><Link href="/inbox">← Back to inbox</Link></p>
       <h1 className="mt-3 text-3xl font-bold leading-tight text-ink">{job.listingTitle}</h1>
-      <p className="mt-2 text-sm text-ink-muted">Buyer: {job.buyer} · Seller: {job.seller}</p>
+      <p className="mt-2 flex flex-wrap items-center gap-2 text-sm text-ink-muted">Buyer: {job.buyer} · {job.seller ? <><Link href={`/profile/${encodeURIComponent(job.seller)}`} className="font-medium text-ink hover:text-brand-text">View seller</Link> <SellerBadge userId={job.seller} /></> : "Seller: —"}</p>
+      {isUuid(job.seller) ? <p className="mt-2 text-sm"><Link href={`/profile/${encodeURIComponent(job.seller)}`} className="font-medium text-ink hover:text-brand-text">View seller</Link></p> : null}
       <p className="mt-2"><span className="rounded-full bg-brand-soft px-3 py-1 text-sm font-medium text-brand-text">{JOB_STATUSES[job.status]}</span></p>
       <ol className="mt-6 space-y-2">
         {FLOW.map((s, i) => (

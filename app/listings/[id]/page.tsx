@@ -8,6 +8,7 @@ import { EmptyState, SafetyBanner, VerifiedBadge } from "@/components/ui";
 
 function mapRow(row: Record<string, unknown>): Listing {
   const cat = row.hustly_categories as { name?: string } | null;
+  const uni = row.hustly_universities as { name?: string } | null;
   return {
     id: String(row.id),
     title: String(row.title || ""),
@@ -15,9 +16,9 @@ function mapRow(row: Record<string, unknown>): Listing {
     description: String(row.description || ""),
     priceMin: Number(row.price_min || 0),
     priceMax: row.price_max == null ? null : Number(row.price_max),
-    university: "",
+    university: uni?.name || "",
     seller: String(row.seller_id || ""),
-    verified: false,
+    verified: Boolean(row.seller_verified),
     delivery: String(row.delivery_estimate || ""),
   };
 }
@@ -26,17 +27,30 @@ export default function ListingDetailPage() {
   const params = useParams(); const id = String(params.id);
   const [listing, setListing] = useState<Listing | null>(null);
   const [loading, setLoading] = useState(true);
+  const [notice, setNotice] = useState<"" | "signin" | "verify" | "cross" | "notfound">("");
   const [task, setTask] = useState(""); const [price, setPrice] = useState(""); const [deadline, setDeadline] = useState("");
   const [msg, setMsg] = useState(""); const [error, setError] = useState(""); const [sending, setSending] = useState(false);
   useEffect(() => {
-    fetch("/api/listings")
-      .then((r) => r.json())
-      .then((j) => {
-        const rows = ((j.listings || []) as Record<string, unknown>[]).map(mapRow);
-        setListing(rows.find((l) => l.id === id) || null);
-      })
-      .catch(() => setListing(null))
-      .finally(() => setLoading(false));
+    // One listing, fetched as the signed-in account: the server only
+    // returns it when it belongs to the viewer's own university.
+    (async () => {
+      const token = await getAccessToken();
+      if (!token) { setNotice("signin"); setLoading(false); return; }
+      try {
+        const res = await fetch(`/api/listings?id=${encodeURIComponent(id)}`, { headers: { Authorization: `Bearer ${token}` } });
+        const j = await res.json();
+        if (!res.ok) {
+          if (res.status === 401) setNotice("signin");
+          else if (j.crossUniversity) setNotice("cross");
+          else if (j.needsVerification) setNotice("verify");
+          else setNotice("notfound");
+          return;
+        }
+        setListing(j.listing ? mapRow(j.listing as Record<string, unknown>) : null);
+        if (!j.listing) setNotice("notfound");
+      } catch { setNotice("notfound"); }
+      finally { setLoading(false); }
+    })();
   }, [id]);
   async function request(e: React.FormEvent) {
     e.preventDefault(); setError(""); setMsg(""); setSending(true);
@@ -45,13 +59,16 @@ export default function ListingDetailPage() {
     if (!token) { setError("Please sign in to your Hustly account first, then send the request."); setSending(false); return; }
     const res = await fetch("/api/jobs", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify({ listingId: id, taskDescription: task, proposedPrice: Number(price), deadline }) });
     const j = await res.json(); setSending(false);
-    if (!res.ok) { setError(j.needsVerification ? "Your student verification is not approved yet. Complete your verification first." : (j.error || "Could not send the request.")); return; }
+    if (!res.ok) { setError(j.crossUniversity ? "You can only order services from students at your own university." : j.needsVerification ? "Your student verification is not approved yet. Complete your verification first." : (j.error || "Could not send the request.")); return; }
     const jobs = JSON.parse(localStorage.getItem("hustly_jobs") || "[]");
     jobs.unshift({ id: j.id || `job-${Date.now()}`, listingId: id, listingTitle: listing?.title || "", buyer: "You", seller: listing?.seller || "", status: "requested", task, price: Number(price), deadline, buyerConfirmed: false, sellerConfirmed: false });
     localStorage.setItem("hustly_jobs", JSON.stringify(jobs));
     setMsg("Request sent. The seller can accept, decline, or ask for clarification.");
   }
   if (loading) return <div className="mx-auto max-w-3xl px-4 py-10"><p className="text-center text-sm text-ink-muted">Loading listing…</p></div>;
+  if (notice === "cross") return <div className="mx-auto max-w-3xl px-4 py-10"><EmptyState title="Not available at your university" body="This service is from a student at another university. You can only order services from students at your own university." action={<Link href="/marketplace" className="rounded-xl bg-brand px-5 py-3 font-medium text-white">Back to marketplace</Link>} /></div>;
+  if (notice === "signin") return <div className="mx-auto max-w-3xl px-4 py-10"><EmptyState title="Sign in to see this service" body="Listings are only shown to verified students of the same university. Sign in to see services on your campus." action={<Link href="/auth/signin" className="rounded-xl bg-brand px-5 py-3 font-medium text-white">Sign in</Link>} /></div>;
+  if (notice === "verify") return <div className="mx-auto max-w-3xl px-4 py-10"><EmptyState title="Complete your verification first" body="Listings are only shown to verified students of the same university. Verify as a student to see services on your campus." action={<Link href="/verify" className="rounded-xl bg-brand px-5 py-3 font-medium text-white">Verify as a student</Link>} /></div>;
   if (!listing) return <div className="mx-auto max-w-3xl px-4 py-10"><EmptyState title="Listing not found" body="This listing may have been removed or the link is wrong." action={<Link href="/marketplace" className="rounded-xl bg-brand px-5 py-3 font-medium text-white">Back to marketplace</Link>} /></div>;
   return (
     <div className="mx-auto max-w-3xl px-4 py-10 sm:px-6">
@@ -61,7 +78,11 @@ export default function ListingDetailPage() {
       <p className="mt-3 text-base leading-relaxed text-ink-soft">{listing.description}</p>
       <p className="mt-4 text-xl font-bold text-ink">{naira(listing.priceMin)}{listing.priceMax ? ` – ${naira(listing.priceMax)}` : ""}</p>
       {listing.delivery ? <p className="mt-1 text-sm text-ink-muted">Delivery: {listing.delivery}</p> : null}
-      <div className="mt-4 flex items-center gap-2">{listing.seller ? <Link href={`/profile/${encodeURIComponent(listing.seller)}`} className="font-medium text-ink">View seller</Link> : null}{listing.verified ? <VerifiedBadge /> : null}</div>
+      <div className="mt-4 flex flex-wrap items-center gap-2">
+        {listing.seller ? <Link href={`/profile/${encodeURIComponent(listing.seller)}`} className="font-medium text-ink hover:text-brand-text">View seller</Link> : null}
+        {listing.university ? <span className="text-sm text-ink-soft">· {listing.university}</span> : null}
+        {listing.verified ? <VerifiedBadge /> : null}
+      </div>
       <div className="mt-6"><SafetyBanner /></div>
       <form onSubmit={request} className="mt-6 space-y-4 rounded-2xl border border-line bg-white p-6 shadow-card">
         <h2 className="text-lg font-semibold text-ink">Request this service</h2>

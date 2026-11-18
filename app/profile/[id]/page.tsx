@@ -3,47 +3,64 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { naira, type Listing } from "@/lib/utils";
+import { getAccessToken } from "@/lib/client-auth";
 import { EmptyState, VerifiedBadge } from "@/components/ui";
 
 type Profile = {
   id: string; name: string; university: string; faculty: string; department: string;
   level: string; bio: string; verified: boolean;
-  reviews: { rating: number; comment: string; created: string }[];
+  reviews: { rating: number; comment: string; created: string; reviewer: string; reviewerVerified: boolean }[];
 };
 
 export default function ProfilePage() {
   const params = useParams(); const id = decodeURIComponent(String(params.id));
   const [listings, setListings] = useState<Listing[]>([]);
   const [profile, setProfile] = useState<Profile | null>(null);
+  const [crossUniversity, setCrossUniversity] = useState(false);
   const [reported, setReported] = useState(false);
   useEffect(() => {
-    fetch(`/api/profiles/${encodeURIComponent(id)}`)
-      .then((r) => r.json())
-      .then((j) => setProfile((j.profile || null) as Profile | null))
-      .catch(() => setProfile(null));
-    fetch("/api/listings")
-      .then((r) => r.json())
-      .then((j) => {
+    (async () => {
+      const token = await getAccessToken();
+      const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
+      try {
+        const res = await fetch(`/api/profiles/${encodeURIComponent(id)}`, { headers });
+        const j = await res.json();
+        if (j.crossUniversity) { setCrossUniversity(true); setProfile(null); return; }
+        setProfile((j.profile || null) as Profile | null);
+      } catch { setProfile(null); }
+      if (!token) return; // listings are university-filtered on the server
+      try {
+        const res = await fetch("/api/listings", { headers: { Authorization: `Bearer ${token}` } });
+        const j = await res.json();
+        if (!res.ok) return;
         const rows = ((j.listings || []) as Record<string, unknown>[])
           .filter((row) => String(row.seller_id || "") === id)
           .map((row) => {
             const cat = row.hustly_categories as { name?: string } | null;
+            const uni = row.hustly_universities as { name?: string } | null;
             return {
               id: String(row.id), title: String(row.title || ""), category: cat?.name || "Other",
               description: String(row.description || ""), priceMin: Number(row.price_min || 0),
-              priceMax: row.price_max == null ? null : Number(row.price_max), university: "",
-              seller: String(row.seller_id || ""), verified: false, delivery: String(row.delivery_estimate || ""),
+              priceMax: row.price_max == null ? null : Number(row.price_max), university: uni?.name || "",
+              seller: String(row.seller_id || ""), verified: Boolean(row.seller_verified), delivery: String(row.delivery_estimate || ""),
             } as Listing;
           });
         setListings(rows);
-      })
-      .catch(() => setListings([]));
+      } catch { setListings([]); }
+    })();
   }, [id]);
   async function report() {
     await fetch("/api/reports", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ targetName: profile?.name || id, reason: "other", details: "Reported from public profile." }) });
     setReported(true);
   }
   const initial = (profile?.name || "H").trim().charAt(0).toUpperCase() || "H";
+  if (crossUniversity) {
+    return (
+      <div className="mx-auto max-w-3xl px-4 py-10 sm:px-6">
+        <EmptyState title="Not available at your university" body="This profile belongs to a student at another university. You can only see sellers from your own university." action={<Link href="/marketplace" className="rounded-xl bg-brand px-5 py-3 font-medium text-white">Back to marketplace</Link>} />
+      </div>
+    );
+  }
   return (
     <div className="mx-auto max-w-3xl px-4 py-10 sm:px-6">
       <div className="rounded-2xl border border-line bg-white p-6 shadow-card sm:p-8">
@@ -86,6 +103,7 @@ export default function ProfilePage() {
             <div key={i} className="rounded-2xl border border-line bg-white p-4 shadow-card">
               <p className="text-sm font-semibold text-ink">{"★".repeat(Math.max(0, Math.min(5, r.rating)))}{"☆".repeat(Math.max(0, 5 - Math.min(5, r.rating)))} <span className="font-normal text-ink-muted">{r.rating}/5</span></p>
               {r.comment ? <p className="mt-1 text-sm leading-relaxed text-ink-soft">{r.comment}</p> : null}
+              {r.reviewer ? <p className="mt-2 flex flex-wrap items-center gap-2 text-xs text-ink-muted">Reviewed by {r.reviewer} {r.reviewerVerified ? <VerifiedBadge /> : null}</p> : null}
             </div>
           ))}
         </div>

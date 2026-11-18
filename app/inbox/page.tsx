@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { JOB_STATUSES, naira, type Job } from "@/lib/utils";
 import { EmptyState } from "@/components/ui";
+import { SellerBadge } from "@/components/seller-badge";
 
 export default function InboxPage() {
   const [jobs, setJobs] = useState<Job[]>([]);
@@ -20,7 +21,7 @@ export default function InboxPage() {
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <Link href={`/jobs/${j.id}`} className="text-lg font-semibold text-ink hover:text-brand-text">{j.listingTitle}</Link>
-                  <p className="mt-1 text-sm text-ink-muted">{j.buyer} · {j.seller} · {naira(j.price)} · due {j.deadline}</p>
+                  <p className="mt-1 flex flex-wrap items-center gap-x-2 text-sm text-ink-muted"><span>{j.buyer} · {j.seller}</span> <SellerBadge userId={j.seller} /> <span>· {naira(j.price)} · due {j.deadline}</span></p>
                 </div>
                 <span className="shrink-0 rounded-full bg-brand-soft px-2.5 py-1 text-xs font-medium text-brand-text">{JOB_STATUSES[j.status]}</span>
               </div>

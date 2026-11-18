@@ -4,7 +4,9 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { SAFETY_COPY } from "@/lib/data";
 import { SafetyBanner } from "@/components/ui";
+import { SellerBadge } from "@/components/seller-badge";
 import { getAccessToken } from "@/lib/client-auth";
+import { isUuid } from "@/lib/utils";
 import type { ChatMessage, Job } from "@/lib/utils";
 
 export default function ChatPage() {
@@ -49,7 +51,8 @@ export default function ChatPage() {
     <div className="mx-auto flex min-h-[70vh] max-w-3xl flex-col px-4 py-6 sm:px-6">
       <p className="text-sm"><Link href="/inbox">← Back to inbox</Link></p>
       <h1 className="mt-3 text-2xl font-bold text-ink">{job ? job.listingTitle : "Chat"}</h1>
-      {job ? <p className="mt-1 text-sm text-ink-muted">{job.buyer} · {job.seller}</p> : null}
+      {job ? <p className="mt-1 flex flex-wrap items-center gap-2 text-sm text-ink-muted">{job.buyer} · {job.seller} <SellerBadge userId={job.seller} /></p> : null}
+      {job && isUuid(job.seller) ? <p className="mt-2 text-sm"><Link href={`/profile/${encodeURIComponent(job.seller)}`} className="font-medium text-ink hover:text-brand-text">View seller</Link></p> : null}
       {/* Pinned safety notice — always visible at the top of every chat, never dismissible. */}
       <div className="sticky top-16 z-10 mt-4"><SafetyBanner /></div>
       <div className="mt-4 flex flex-1 flex-col gap-3 rounded-2xl border border-line bg-white p-4 shadow-card sm:p-5">
