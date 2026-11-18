@@ -1,7 +1,9 @@
 "use client";
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { CATEGORIES, UNIVERSITIES } from "@/lib/data";
+import { getBrowserSupabase } from "@/lib/supabase";
 import { naira } from "@/lib/utils";
 
 export default function NewListingPage() {
@@ -12,7 +14,13 @@ export default function NewListingPage() {
   async function submit(e: React.FormEvent) {
     e.preventDefault(); setError(""); setLoading(true);
     try {
-      const res = await fetch("/api/listings", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...form, priceMin: Number(form.priceMin), priceMax: form.priceMax ? Number(form.priceMax) : null }) });
+      // The listing is filed under the signed-in account, so "View seller"
+      // can link to a real profile. Without a session the server rejects it.
+      const supabase = getBrowserSupabase();
+      const { data: sessionData } = supabase ? await supabase.auth.getSession() : { data: { session: null } };
+      const token = sessionData.session?.access_token;
+      if (!token) { setError("Please sign in to your Hustly account first, then publish your listing."); setLoading(false); return; }
+      const res = await fetch("/api/listings", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify({ ...form, priceMin: Number(form.priceMin), priceMax: form.priceMax ? Number(form.priceMax) : null }) });
       const j = await res.json();
       if (!res.ok) { setError(j.error || "Could not create the listing."); return; }
       router.push(j.id ? `/listings/${j.id}` : "/marketplace");
@@ -33,7 +41,7 @@ export default function NewListingPage() {
         </div>
         <label className="block text-sm font-medium text-ink">Delivery estimate<input required value={form.delivery} onChange={(e) => set("delivery", e.target.value)} className="mt-1 w-full rounded-lg border border-line px-3 py-2.5" placeholder="e.g. 2 days" /></label>
         {form.priceMin ? <p className="rounded-lg bg-brand-soft px-3 py-2 text-sm text-brand-text">Starting at {naira(Number(form.priceMin) || 0)}. Remember: agree no more than 50% upfront, balance after delivery. Hustly never takes payment.</p> : null}
-        {error ? <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700" role="alert">{error}</p> : null}
+        {error ? <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700" role="alert">{error} <Link href="/auth/signin" className="font-medium underline">Sign in</Link></p> : null}
         <button disabled={loading} className="w-full rounded-xl bg-brand px-4 py-3 font-medium text-white hover:bg-brand-hover disabled:opacity-50">{loading ? "Publishing…" : "Publish listing"}</button>
       </form>
     </div>

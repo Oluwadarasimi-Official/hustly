@@ -43,7 +43,7 @@ export default function SavedPage() {
               <Link href={`/listings/${l.id}`} className="mt-3 block text-lg font-semibold text-ink">{l.title}</Link>
               <p className="mt-2 text-sm text-ink-soft">{l.description}</p>
               <p className="mt-3 font-semibold text-ink">{naira(l.priceMin)}{l.priceMax ? ` – ${naira(l.priceMax)}` : ""}</p>
-              <div className="mt-2 flex items-center gap-2 text-sm text-ink-soft"><Link href={`/profile/${encodeURIComponent(l.seller)}`} className="hover:text-brand-text">View seller</Link>{l.verified ? <VerifiedBadge /> : null}</div>
+              <div className="mt-2 flex items-center gap-2 text-sm text-ink-soft">{l.seller ? <Link href={`/profile/${encodeURIComponent(l.seller)}`} className="hover:text-brand-text">View seller</Link> : null}{l.verified ? <VerifiedBadge /> : null}</div>
               <button onClick={() => { const next = toggleSaved("hustly_saved", l.id); setSaved(next); setItems(items.filter((x) => x.id !== l.id)); }} className="mt-4 rounded-lg border border-line px-3 py-2 text-sm">Remove</button>
             </article>
           ))}

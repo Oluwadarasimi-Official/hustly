@@ -74,7 +74,7 @@ function MarketplaceInner() {
               <p className="mt-2 flex-1 text-sm leading-relaxed text-ink-soft">{l.description}</p>
               <p className="mt-3 text-base font-semibold text-ink">{naira(l.priceMin)}{l.priceMax ? ` – ${naira(l.priceMax)}` : ""}</p>
               {l.delivery ? <p className="mt-1 text-xs text-ink-muted">Delivery: {l.delivery}</p> : null}
-              <div className="mt-3 flex items-center gap-2 text-sm text-ink-soft"><Link href={`/profile/${encodeURIComponent(l.seller)}`} className="hover:text-brand-text">View seller</Link>{l.verified ? <VerifiedBadge /> : null}</div>
+              <div className="mt-3 flex items-center gap-2 text-sm text-ink-soft">{l.seller ? <Link href={`/profile/${encodeURIComponent(l.seller)}`} className="hover:text-brand-text">View seller</Link> : null}{l.verified ? <VerifiedBadge /> : null}</div>
             </article>
           ))}
         </div>

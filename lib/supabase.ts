@@ -32,7 +32,7 @@ export function notConfiguredResponse() {
 // Use this for any route that must know who the signed-in submitter is
 // (e.g. student verification), so the stored email always comes from the
 // account, never from a form field the client could forge.
-export async function getUserFromBearer(req: Request): Promise<{ id: string; email: string | null } | null> {
+export async function getUserFromBearer(req: Request): Promise<{ id: string; email: string | null; meta: Record<string, unknown> } | null> {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
   if (!url || !anon) return null;
@@ -43,6 +43,6 @@ export async function getUserFromBearer(req: Request): Promise<{ id: string; ema
     const client = createClient(url, anon, { auth: { persistSession: false, autoRefreshToken: false } });
     const { data, error } = await client.auth.getUser(token);
     if (error || !data?.user) return null;
-    return { id: data.user.id, email: data.user.email ?? null };
+    return { id: data.user.id, email: data.user.email ?? null, meta: (data.user.user_metadata || {}) as Record<string, unknown> };
   } catch { return null; }
 }

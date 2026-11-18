@@ -3,13 +3,24 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { naira, type Listing } from "@/lib/utils";
-import { EmptyState } from "@/components/ui";
+import { EmptyState, VerifiedBadge } from "@/components/ui";
+
+type Profile = {
+  id: string; name: string; university: string; faculty: string; department: string;
+  level: string; bio: string; verified: boolean;
+  reviews: { rating: number; comment: string; created: string }[];
+};
 
 export default function ProfilePage() {
   const params = useParams(); const id = decodeURIComponent(String(params.id));
   const [listings, setListings] = useState<Listing[]>([]);
+  const [profile, setProfile] = useState<Profile | null>(null);
   const [reported, setReported] = useState(false);
   useEffect(() => {
+    fetch(`/api/profiles/${encodeURIComponent(id)}`)
+      .then((r) => r.json())
+      .then((j) => setProfile((j.profile || null) as Profile | null))
+      .catch(() => setProfile(null));
     fetch("/api/listings")
       .then((r) => r.json())
       .then((j) => {
@@ -29,15 +40,25 @@ export default function ProfilePage() {
       .catch(() => setListings([]));
   }, [id]);
   async function report() {
-    await fetch("/api/reports", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ targetName: id, reason: "other", details: "Reported from public profile." }) });
+    await fetch("/api/reports", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ targetName: profile?.name || id, reason: "other", details: "Reported from public profile." }) });
     setReported(true);
   }
+  const initial = (profile?.name || "H").trim().charAt(0).toUpperCase() || "H";
   return (
     <div className="mx-auto max-w-3xl px-4 py-10 sm:px-6">
       <div className="rounded-2xl border border-line bg-white p-6 shadow-card sm:p-8">
-        <div className="flex h-16 w-16 items-center justify-center rounded-full bg-brand-soft text-2xl font-bold text-brand-text">H</div>
-        <h1 className="mt-4 text-2xl font-bold text-ink">Student seller</h1>
-        <p className="mt-3 text-sm leading-relaxed text-ink-soft">A student seller on Hustly. Only public information is shown here — email, phone, hostel address and ID details are private and never appear on profiles.</p>
+        <div className="flex h-16 w-16 items-center justify-center rounded-full bg-brand-soft text-2xl font-bold text-brand-text">{initial}</div>
+        <h1 className="mt-4 text-2xl font-bold text-ink">{profile?.name || "Student seller"}</h1>
+        <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-ink-soft">
+          {profile?.university ? <span>{profile.university}</span> : null}
+          {profile?.verified ? <VerifiedBadge /> : null}
+        </div>
+        {profile?.faculty || profile?.department || profile?.level ? (
+          <p className="mt-1 text-sm text-ink-muted">{[profile?.faculty, profile?.department, profile?.level].filter(Boolean).join(" · ")}</p>
+        ) : null}
+        {profile?.bio ? <p className="mt-3 text-sm leading-relaxed text-ink-soft">{profile.bio}</p> : (
+          <p className="mt-3 text-sm leading-relaxed text-ink-soft">A student seller on Hustly. Only public information is shown here — email, phone, hostel address and ID details are private and never appear on profiles.</p>
+        )}
         <div className="mt-5 flex gap-3">
           <Link href="/marketplace" className="rounded-xl bg-brand px-4 py-2.5 text-sm font-medium text-white">Browse the marketplace</Link>
           <button onClick={report} disabled={reported} className="rounded-xl border border-line bg-white px-4 py-2.5 text-sm font-medium text-ink disabled:opacity-50">{reported ? "Reported — admin will review" : "Report"}</button>
@@ -57,7 +78,18 @@ export default function ProfilePage() {
         </div>
       )}
       <h2 className="mt-8 text-xl font-semibold text-ink">Reviews</h2>
-      <p className="mt-2 text-sm text-ink-muted">Reviews appear here only after a job is completed and both sides confirm it. No reviews yet for this student.</p>
+      {!profile || profile.reviews.length === 0 ? (
+        <p className="mt-2 text-sm text-ink-muted">Reviews appear here only after a job is completed and both sides confirm it. No reviews yet for this student.</p>
+      ) : (
+        <div className="mt-4 space-y-3">
+          {profile.reviews.map((r, i) => (
+            <div key={i} className="rounded-2xl border border-line bg-white p-4 shadow-card">
+              <p className="text-sm font-semibold text-ink">{"★".repeat(Math.max(0, Math.min(5, r.rating)))}{"☆".repeat(Math.max(0, 5 - Math.min(5, r.rating)))} <span className="font-normal text-ink-muted">{r.rating}/5</span></p>
+              {r.comment ? <p className="mt-1 text-sm leading-relaxed text-ink-soft">{r.comment}</p> : null}
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
