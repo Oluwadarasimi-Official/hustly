@@ -42,7 +42,6 @@ export function Footer() {
           <Link href="/marketplace">Marketplace</Link>
           <Link href="/safety">Safety Tips</Link>
           <Link href="/verify">Student verification</Link>
-          <Link href="/admin">Admin</Link>
         </div>
         <p className="mt-6 text-xs text-ink-muted">© 2026 Hustly. Your Campus. Your Hustle.</p>
       </div>
