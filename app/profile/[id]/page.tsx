@@ -20,14 +20,29 @@ export default function ProfilePage() {
   const [crossUniversity, setCrossUniversity] = useState(false);
   const [reported, setReported] = useState(false);
   const [myId, setMyId] = useState<string | null>(null);
+  // Whether the one-time profile edit is already used (own profile only).
+  // null = unknown yet — the "add a picture" prompt waits for this, so it
+  // never points at the edit page after the edit is already spent.
+  const [editUsed, setEditUsed] = useState<boolean | null>(null);
   useEffect(() => {
     (async () => {
       const token = await getAccessToken();
       // Who is signed in — so your OWN profile can say so and offer Edit.
+      let sessionId: string | null = null;
       try {
         const { data } = await getBrowserSupabase()!.auth.getSession();
-        setMyId(data.session?.user?.id || null);
+        sessionId = data.session?.user?.id || null;
+        setMyId(sessionId);
       } catch { setMyId(null); }
+      // Own profile only: has the one-time edit been used? Needed to know
+      // whether to offer "Add your profile picture" (only when unused).
+      if (token && sessionId && sessionId === id) {
+        try {
+          const meRes = await fetch("/api/profiles/me", { headers: { Authorization: `Bearer ${token}` } });
+          const meJson = await meRes.json();
+          if (meRes.ok && meJson.profile) setEditUsed(Boolean(meJson.profile.editUsed));
+        } catch { /* prompt stays hidden on error — never a dead end */ }
+      }
       const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
       try {
         const res = await fetch(`/api/profiles/${encodeURIComponent(id)}`, { headers });
@@ -77,6 +92,15 @@ export default function ProfilePage() {
         ) : (
           <div className="flex h-16 w-16 items-center justify-center rounded-full bg-brand-soft text-2xl font-bold text-brand-text">{initial}</div>
         )}
+        {/* No picture yet on your OWN profile and the one edit is still
+            unused: say so plainly and point at Edit profile — never a
+            broken image, and never the private verification selfie. */}
+        {myId && myId === id && profile && !profile.avatarUrl && editUsed === false ? (
+          <p className="mt-3 text-sm">
+            <Link href="/profile/edit" className="font-medium text-brand-text underline">Add your profile picture</Link>
+            <span className="text-ink-muted"> — you can edit your profile once, name and picture only.</span>
+          </p>
+        ) : null}
         <h1 className="mt-4 text-2xl font-bold text-ink">{profile?.name || "Student seller"}</h1>
         <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-ink-soft">
           {profile?.university ? <span>{profile.university}</span> : null}

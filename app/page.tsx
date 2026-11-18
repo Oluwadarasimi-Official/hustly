@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { CATEGORIES } from "@/lib/data";
 import { LogoCombo, SafetyBanner } from "@/components/ui";
+import { HeroCtas, ClosingCtas } from "@/components/home-ctas";
 
 export default function Home() {
   return (
@@ -17,14 +18,8 @@ export default function Home() {
           Hustly connects verified students in the same university, so you can offer a service,
           find someone who does it well, and agree the work clearly — without leaving your campus.
         </p>
-        <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
-          <Link href="/auth/signup" className="w-full rounded-xl bg-brand px-6 py-3 text-center font-medium text-white hover:bg-brand-hover sm:w-auto">
-            Create a free account
-          </Link>
-          <Link href="/marketplace" className="w-full rounded-xl border border-line bg-white px-6 py-3 text-center font-medium text-ink hover:border-brand sm:w-auto">
-            Browse the marketplace
-          </Link>
-        </div>
+        {/* Session-aware: signed-in users get logged-in actions, never a sign-up CTA. */}
+        <HeroCtas />
         <p className="mt-4 text-sm text-ink-muted">Verified students only. Same university only. No payments through Hustly.</p>
       </section>
 
@@ -91,13 +86,8 @@ export default function Home() {
       <section className="mx-auto max-w-6xl px-4 pb-16 pt-6 sm:px-6">
         <div className="rounded-2xl bg-brand-soft px-6 py-10 text-center sm:px-10">
           <h2 className="text-2xl font-bold text-ink">Your campus. Your hustle.</h2>
-          <p className="mx-auto mt-3 max-w-lg text-base leading-relaxed text-ink-soft">
-            Join Hustly, verify as a student, and start offering or finding services on your campus today.
-          </p>
-          <div className="mt-6 flex flex-col items-center justify-center gap-3 sm:flex-row">
-            <Link href="/auth/signup" className="w-full rounded-xl bg-brand px-6 py-3 text-center font-medium text-white hover:bg-brand-hover sm:w-auto">Sign up free</Link>
-            <Link href="/auth/signin" className="w-full rounded-xl border border-line bg-white px-6 py-3 text-center font-medium text-ink sm:w-auto">Sign in</Link>
-          </div>
+          {/* Session-aware: signed-in users get logged-in actions, never "Sign up free" / "Sign in". */}
+          <ClosingCtas />
         </div>
       </section>
     </div>

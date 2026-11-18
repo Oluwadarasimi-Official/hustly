@@ -19,29 +19,42 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
   const supabase = getServerSupabase();
   if (!supabase) return Response.json({ ok: true, profile: null });
 
+  // Read the profile row with a PLAIN select — no embedded join. The row
+  // used to be read as select("*, hustly_universities(name)"); on the live
+  // site that query did not return the row at all, so avatar_url (and the
+  // row's trimmed name) never reached the page: the API fell back to the
+  // sign-up metadata, which has no picture and a trailing-space name, and
+  // the profile showed the initial-letter circle instead of the picture
+  // the user uploaded. A plain select is proven to work live (the
+  // verification lookup below uses one), and the university name is
+  // resolved with its own small query afterwards.
   let name = ""; let university = ""; let universityId: string | null = null; let faculty = ""; let department = ""; let level = ""; let bio = ""; let avatarUrl = "";
-  const { data: row } = await supabase.from("hustly_profiles").select("*, hustly_universities(name)").eq("id", id).maybeSingle();
+  const { data: row } = await supabase.from("hustly_profiles").select("*").eq("id", id).maybeSingle();
   if (row) {
-    name = String((row as Record<string, unknown>).display_name || (row as Record<string, unknown>).full_name || "");
-    const uni = (row as Record<string, unknown>).hustly_universities as { name?: string } | null;
-    university = uni?.name || "";
-    universityId = (row as Record<string, unknown>).university_id ? String((row as Record<string, unknown>).university_id) : null;
-    faculty = String((row as Record<string, unknown>).faculty || "");
-    department = String((row as Record<string, unknown>).department || "");
-    level = String((row as Record<string, unknown>).academic_level || "");
-    bio = String((row as Record<string, unknown>).bio || "");
-    avatarUrl = String((row as Record<string, unknown>).avatar_url || "");
+    const rec = row as Record<string, unknown>;
+    name = String(rec.display_name || rec.full_name || "").trim();
+    universityId = rec.university_id ? String(rec.university_id) : null;
+    faculty = String(rec.faculty || "").trim();
+    department = String(rec.department || "").trim();
+    level = String(rec.academic_level || "").trim();
+    bio = String(rec.bio || "").trim();
+    avatarUrl = String(rec.avatar_url || "").trim();
+  }
+  // University name from its own lookup — never from the embedded join.
+  if (universityId) {
+    const { data: uni } = await supabase.from("hustly_universities").select("name").eq("id", universityId).maybeSingle();
+    if (uni) university = String((uni as { name?: unknown }).name || "").trim();
   }
   // Fallback: details saved at sign-up live in the auth user's metadata.
   if (!name || !university) {
     try {
       const { data } = await supabase.auth.admin.getUserById(id);
       const meta = (data?.user?.user_metadata || {}) as Record<string, unknown>;
-      if (!name) name = String(meta.display_name || meta.full_name || "");
-      if (!university) university = String(meta.university || "");
-      if (!faculty) faculty = String(meta.faculty || "");
-      if (!department) department = String(meta.department || "");
-      if (!level) level = String(meta.academic_level || "");
+      if (!name) name = String(meta.display_name || meta.full_name || "").trim();
+      if (!university) university = String(meta.university || "").trim();
+      if (!faculty) faculty = String(meta.faculty || "").trim();
+      if (!department) department = String(meta.department || "").trim();
+      if (!level) level = String(meta.academic_level || "").trim();
     } catch { /* no auth record — profile stays as found above */ }
   }
   // Resolve the seller's university id for the same-university check.

@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { getBrowserSupabase } from "@/lib/supabase";
+import { getAccessToken } from "@/lib/client-auth";
 
 // Session-aware header. The old header was a static server component that
 // always showed "Sign in / Sign up", even for a signed-in user — that is
@@ -22,6 +23,30 @@ export function Header() {
   const router = useRouter();
   const [userId, setUserId] = useState<string | null>(null);
   const [ready, setReady] = useState(false);
+  // The signed-in user's profile picture, so the header can show it next
+  // to "My profile". Fetched only when the signed-in user changes, and
+  // only from the public avatar — never the verification selfie.
+  const [avatarUrl, setAvatarUrl] = useState("");
+
+  useEffect(() => {
+    if (!userId) {
+      setAvatarUrl("");
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const token = await getAccessToken();
+        if (!token) return;
+        const res = await fetch("/api/profiles/me", { headers: { Authorization: `Bearer ${token}` } });
+        const j = await res.json();
+        if (!cancelled && res.ok && j.profile) setAvatarUrl(String(j.profile.avatarUrl || ""));
+      } catch { /* header works without a picture — text link only */ }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [userId]);
 
   useEffect(() => {
     const supabase = getBrowserSupabase();
@@ -74,7 +99,13 @@ export function Header() {
           {ready && signedIn ? (
             <>
               <Link href="/saved" className="hidden whitespace-nowrap rounded-lg px-3 py-2 text-ink-soft hover:bg-wash hover:text-ink sm:block">Saved</Link>
-              <Link href={`/profile/${encodeURIComponent(userId!)}`} className="whitespace-nowrap rounded-lg px-2 py-2 font-medium text-ink hover:bg-wash sm:px-3">My profile</Link>
+              <Link href={`/profile/${encodeURIComponent(userId!)}`} className="flex items-center gap-2 whitespace-nowrap rounded-lg px-2 py-2 font-medium text-ink hover:bg-wash sm:px-3">
+                {avatarUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={avatarUrl} alt="" className="h-7 w-7 rounded-full object-cover" />
+                ) : null}
+                My profile
+              </Link>
               <button onClick={signOut} className="whitespace-nowrap rounded-lg border border-line bg-white px-3 py-2 text-ink-soft hover:bg-wash hover:text-ink">Sign out</button>
             </>
           ) : ready ? (
