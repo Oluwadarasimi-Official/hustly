@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { JOB_STATUSES, naira, type Job } from "@/lib/utils";
+import { getAccessToken } from "@/lib/client-auth";
 import { EmptyState, SafetyBanner } from "@/components/ui";
 
 const FLOW: Job["status"][] = ["requested", "accepted", "in_progress", "delivered", "completion_pending", "completed"];
@@ -26,7 +27,9 @@ export default function JobPage() {
   async function review(e: React.FormEvent) {
     e.preventDefault(); setError("");
     if (!job || !job.buyerConfirmed || !job.sellerConfirmed) { setError("Reviews open only after both sides confirm the job is complete."); return; }
-    const res = await fetch("/api/reviews", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ jobId: job.id, rating, comment }) });
+    const token = await getAccessToken();
+    if (!token) { setError("Please sign in to your Hustly account first, then leave the review."); return; }
+    const res = await fetch("/api/reviews", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify({ jobId: job.id, rating, comment }) });
     const j = await res.json();
     if (!res.ok) { setError(j.error || "Could not save the review."); return; }
     setMsg("Review saved. Thank you.");

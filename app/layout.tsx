@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { Footer, Header } from "@/components/ui";
+import VerificationGate from "@/components/verification-gate";
 
 export const metadata: Metadata = {
   title: "Hustly — Your Campus. Your Hustle.",
@@ -13,6 +14,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en">
       <body className="min-h-screen bg-white text-ink antialiased">
+        <VerificationGate />
         <Header />
         <main>{children}</main>
         <Footer />

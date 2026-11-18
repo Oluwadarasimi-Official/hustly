@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { SAFETY_COPY } from "@/lib/data";
 import { SafetyBanner } from "@/components/ui";
+import { getAccessToken } from "@/lib/client-auth";
 import type { ChatMessage, Job } from "@/lib/utils";
 
 export default function ChatPage() {
@@ -25,13 +26,17 @@ export default function ChatPage() {
   function saveMsgs(next: ChatMessage[]) { setMessages(next); localStorage.setItem(`hustly_chat_${jobId}`, JSON.stringify(next)); }
   async function send(e: React.FormEvent) {
     e.preventDefault(); if (!body.trim() || blocked) return;
-    const res = await fetch("/api/messages", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ jobId, body: body.trim() }) });
+    const token = await getAccessToken();
+    if (!token) { setError("Please sign in to your Hustly account first, then send the message."); return; }
+    const res = await fetch("/api/messages", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify({ jobId, body: body.trim() }) });
     if (!res.ok) { setError("Message could not be sent. Please try again."); return; }
     saveMsgs([...messages, { id: `m-${Date.now()}`, jobId, from: "You", body: body.trim(), at: new Date().toLocaleTimeString() }]);
     setBody("");
   }
   async function acknowledge() {
-    const res = await fetch("/api/contact-reveal", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ jobId }) });
+    const token = await getAccessToken();
+    if (!token) { setError("Please sign in to your Hustly account first."); return; }
+    const res = await fetch("/api/contact-reveal", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify({ jobId }) });
     if (!res.ok) { setError("Could not record the acknowledgement. Please try again."); return; }
     localStorage.setItem(`hustly_reveal_${jobId}`, "yes");
     setRevealed(true); setShowReveal(false);

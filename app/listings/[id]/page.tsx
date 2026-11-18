@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { naira, type Listing } from "@/lib/utils";
+import { getAccessToken } from "@/lib/client-auth";
 import { EmptyState, SafetyBanner, VerifiedBadge } from "@/components/ui";
 
 function mapRow(row: Record<string, unknown>): Listing {
@@ -39,9 +40,12 @@ export default function ListingDetailPage() {
   }, [id]);
   async function request(e: React.FormEvent) {
     e.preventDefault(); setError(""); setMsg(""); setSending(true);
-    const res = await fetch("/api/jobs", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ listingId: id, taskDescription: task, proposedPrice: Number(price), deadline }) });
+    // Job requests go to the server under the signed-in, verified account.
+    const token = await getAccessToken();
+    if (!token) { setError("Please sign in to your Hustly account first, then send the request."); setSending(false); return; }
+    const res = await fetch("/api/jobs", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify({ listingId: id, taskDescription: task, proposedPrice: Number(price), deadline }) });
     const j = await res.json(); setSending(false);
-    if (!res.ok) { setError(j.error || "Could not send the request."); return; }
+    if (!res.ok) { setError(j.needsVerification ? "Your student verification is not approved yet. Complete your verification first." : (j.error || "Could not send the request.")); return; }
     const jobs = JSON.parse(localStorage.getItem("hustly_jobs") || "[]");
     jobs.unshift({ id: j.id || `job-${Date.now()}`, listingId: id, listingTitle: listing?.title || "", buyer: "You", seller: listing?.seller || "", status: "requested", task, price: Number(price), deadline, buyerConfirmed: false, sellerConfirmed: false });
     localStorage.setItem("hustly_jobs", JSON.stringify(jobs));

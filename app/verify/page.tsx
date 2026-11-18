@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { UNIVERSITIES } from "@/lib/data";
 import { getBrowserSupabase } from "@/lib/supabase";
+import { fetchVerificationStatus, formatWAT, type VerificationStatusResponse } from "@/lib/client-auth";
 
 const STATUSES = ["pending_manual_review", "approved", "rejected", "resubmission_requested"] as const;
 
@@ -18,13 +19,26 @@ export default function VerifyStudentPage() {
   // typed field. Prefill the typed fields from the account's own details so
   // the submission matches the account; the student can still correct them.
   const [signedIn, setSignedIn] = useState<boolean | null>(null);
+  // The student's real verification state from the server — so someone who
+  // already submitted sees their status (pending / approved / needs a
+  // resubmission) instead of a blank form that looks like nothing happened.
+  const [existing, setExisting] = useState<VerificationStatusResponse | null>(null);
+  const [checking, setChecking] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  async function refreshStatus() {
+    setRefreshing(true);
+    const s = await fetchVerificationStatus();
+    if (s) setExisting(s);
+    setRefreshing(false);
+  }
   useEffect(() => {
     const supabase = getBrowserSupabase();
-    if (!supabase) { setSignedIn(false); return; }
+    if (!supabase) { setSignedIn(false); setChecking(false); return; }
     supabase.auth.getSession().then(({ data }) => {
       const user = data.session?.user;
-      if (!user) { setSignedIn(false); return; }
+      if (!user) { setSignedIn(false); setChecking(false); return; }
       setSignedIn(true);
+      fetchVerificationStatus().then((s) => { if (s) setExisting(s); }).finally(() => setChecking(false));
       const meta = (user.user_metadata || {}) as Record<string, string>;
       setForm((f) => ({
         university: meta.university && (UNIVERSITIES as readonly string[]).includes(meta.university) ? meta.university : f.university,
@@ -33,7 +47,7 @@ export default function VerifyStudentPage() {
         level: meta.academic_level || f.level,
         fullName: meta.full_name || f.fullName,
       }));
-    }).catch(() => setSignedIn(false));
+    }).catch(() => { setSignedIn(false); setChecking(false); });
   }, []);
   const set = (k: string, v: string) => setForm((f) => ({ ...f, [k]: v }));
 
@@ -81,6 +95,43 @@ export default function VerifyStudentPage() {
     );
   }
 
+  // Already approved: the gate is open — say so clearly and send them on.
+  if (!status && existing?.verified) {
+    return (
+      <div className="mx-auto max-w-xl px-4 py-10 sm:px-6">
+        <div className="rounded-2xl border border-line bg-white p-8 text-center shadow-card">
+          <h1 className="text-2xl font-bold text-ink">You are verified</h1>
+          <p className="mt-3 text-base leading-relaxed text-ink-soft">
+            {existing.fullName ? `${existing.fullName}, your` : "Your"} student verification was approved
+            {existing.university ? ` for ${existing.university}` : ""}. You can now use all of Hustly —
+            browse the marketplace, list a service, send job requests and chat.
+          </p>
+          <Link href="/marketplace" className="mt-6 inline-block rounded-xl bg-brand px-6 py-3 font-medium text-white hover:bg-brand-hover">Go to the marketplace</Link>
+        </div>
+      </div>
+    );
+  }
+
+  // Already submitted and waiting: show the real status, not the form
+  // again — resubmitting while pending would only create a duplicate.
+  if (!status && existing?.status === "pending_manual_review") {
+    return (
+      <div className="mx-auto max-w-xl px-4 py-10 sm:px-6">
+        <div className="rounded-2xl border border-line bg-white p-8 text-center shadow-card">
+          <h1 className="text-2xl font-bold text-ink">Verification pending</h1>
+          <p className="mt-3 text-base leading-relaxed text-ink-soft">
+            Your submission is <strong>pending manual review</strong>. A human admin is comparing your ID card
+            and selfie and will decide within 24 hours. You will be notified of the decision.
+          </p>
+          <p className="mt-4 text-sm text-ink-muted">Submitted: {formatWAT(existing.submittedAt)}{existing.reviewDueAt ? ` · Review due by: ${formatWAT(existing.reviewDueAt)}` : ""}</p>
+          <p className="mt-2 text-sm text-ink-muted">Your ID image and selfie are stored privately and are never shown on your profile, listings or chats.</p>
+          <button onClick={refreshStatus} disabled={refreshing} className="mt-6 rounded-xl border border-line bg-white px-5 py-2.5 font-medium text-ink disabled:opacity-50">{refreshing ? "Checking…" : "Check again"}</button>
+          <p className="mt-3 text-xs text-ink-muted">If the admin has approved you, this page will show it here — no need to submit again.</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="mx-auto max-w-xl px-4 py-10 sm:px-6">
       <h1 className="text-3xl font-bold text-ink">Verify as a student</h1>
@@ -89,6 +140,17 @@ export default function VerifyStudentPage() {
         no automated face matching is used, and no identity image is ever sent to an AI service.
         Your documents are stored privately for safety and audit, and are never shown publicly.
       </p>
+      {checking ? (
+        <p className="mt-4 text-sm text-ink-muted">Checking your verification status…</p>
+      ) : null}
+      {(existing?.status === "rejected" || existing?.status === "resubmission_requested") ? (
+        <div className="mt-4 rounded-lg bg-amber-50 px-3 py-2 text-sm leading-relaxed text-amber-800" role="alert">
+          <strong>{existing.status === "rejected" ? "Your last submission was not approved." : "The admin asked for a resubmission."}</strong>
+          {existing.decisionReason ? <> Reason: {existing.decisionReason}</> : null}
+          {" "}Please check your ID card and selfie and submit again below — clear photos, matching details.
+          {existing.reviewedAt ? <> Decided: {formatWAT(existing.reviewedAt)}</> : null}
+        </div>
+      ) : null}
       {signedIn === false ? (
         <p className="mt-4 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-800" role="alert">
           You need to be signed in to submit a verification — your submission is filed under your account so the admin can see your email. <Link href="/auth/signin" className="font-medium underline">Sign in</Link> or <Link href="/auth/signup" className="font-medium underline">create an account</Link> first.

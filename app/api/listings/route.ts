@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server";
 import { getServerSupabase, getUserFromBearer, notConfiguredResponse } from "@/lib/supabase";
+import { getLatestVerification } from "@/lib/verification";
 
 // Listings: university isolation is enforced in the query (university_id =
 // the viewer's verified university), never UI-only. Only real listings
@@ -33,6 +34,11 @@ export async function POST(req: NextRequest) {
     // at /profile/ (empty id) and 404'd.
     const user = await getUserFromBearer(req);
     if (!user) return Response.json({ ok: false, error: "Please sign in to your Hustly account first, then publish your listing." }, { status: 401 });
+    // Only a signed-in, admin-approved student can publish a listing.
+    const verification = await getLatestVerification(user.id);
+    if (!verification || verification.status !== "approved") {
+      return Response.json({ ok: false, needsVerification: true, error: "Your student verification is not approved yet. Complete your verification first — you can do that at /verify." }, { status: 403 });
+    }
     // Resolve the seller's university id from the university name saved at
     // sign-up, so the listing is visible to their own university.
     let universityId: string | null = null;

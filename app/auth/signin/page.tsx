@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { LogoCombo } from "@/components/ui";
 import { PasswordField } from "@/components/password-field";
 import { getBrowserSupabase, isSupabaseConfigured } from "@/lib/supabase";
+import { fetchVerificationStatus } from "@/lib/client-auth";
 
 export default function SignInPage() {
   const router = useRouter();
@@ -17,7 +18,13 @@ export default function SignInPage() {
       if (!isSupabaseConfigured()) { setError("Sign-in is not connected yet. The owner needs to add the Supabase credentials in the deployment settings."); return; }
       const { error: err } = await getBrowserSupabase()!.auth.signInWithPassword({ email, password });
       if (err) throw err;
-      router.push("/marketplace");
+      // Verified students go to the marketplace. Anyone whose student
+      // profile is not yet approved goes straight to verification and
+      // stays there until an admin approves them — they cannot use the
+      // rest of the app first. If the status check itself fails, fall
+      // back to the marketplace so a hiccup never strands the user.
+      const status = await fetchVerificationStatus();
+      router.push(status && status.configured !== false && !status.verified ? "/verify" : "/marketplace");
     } catch (err) { setError(err instanceof Error ? err.message : "Could not sign you in. Check your email and password."); }
     finally { setLoading(false); }
   }
