@@ -35,6 +35,7 @@ export async function POST(req: NextRequest) {
     if (up2.error) return Response.json({ ok: false, error: "Could not store the selfie. Please try again." }, { status: 500 });
     const { data, error } = await supabase.from("hustly_student_verifications").insert({
       status: "pending_manual_review", document_path: idPath, selfie_path: selfiePath,
+      full_name: fullName, university, faculty, department, academic_level: level,
       review_due_at: new Date(Date.now() + 24 * 3600 * 1000).toISOString(),
     }).select("id").single();
     if (error) return Response.json({ ok: false, error: "Could not save the verification. Please try again." }, { status: 500 });
